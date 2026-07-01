@@ -193,6 +193,8 @@ export default {
     collapseAll: '全部折叠',
     expandAll: '全部展开',
     addTask: '添加任务',
+    loopOn: '循环执行',
+    loopOff: '取消循环',
     noTasks: '暂无任务',
     dragToReorder: '拖拽以重新排序',
     startTasks: '开始任务',

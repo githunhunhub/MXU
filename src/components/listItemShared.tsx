@@ -11,6 +11,7 @@ import {
   Trash2,
   ToggleLeft,
   ToggleRight,
+  Repeat,
 } from 'lucide-react';
 import type { MenuItem } from './ContextMenu';
 import clsx from 'clsx';
@@ -31,6 +32,8 @@ export interface ListItemMenuLabels {
   moveToTop: string;
   moveToBottom: string;
   delete: string;
+  loopOn: string;
+  loopOff: string;
 }
 
 export interface ListItemMenuConfig {
@@ -47,6 +50,8 @@ export interface ListItemMenuConfig {
   isLast: boolean;
   /** 项目不可修改（如实例运行中） */
   isLocked: boolean;
+  /** 当前是否循环执行 */
+  isLooping?: boolean;
 
   onDuplicate: () => void;
   onRename: () => void;
@@ -57,6 +62,7 @@ export interface ListItemMenuConfig {
   onMoveToTop: () => void;
   onMoveToBottom: () => void;
   onDelete: () => void;
+  onToggleLoop?: () => void;
 }
 
 export function buildListItemMenuItems(cfg: ListItemMenuConfig): MenuItem[] {
@@ -84,6 +90,17 @@ export function buildListItemMenuItems(cfg: ListItemMenuConfig): MenuItem[] {
       disabled: isLocked,
       onClick: cfg.onToggle,
     },
+    ...(cfg.onToggleLoop
+      ? [
+          {
+            id: 'toggle-loop',
+            label: cfg.isLooping ? labels.loopOff : labels.loopOn,
+            icon: Repeat,
+            disabled: isLocked,
+            onClick: cfg.onToggleLoop,
+          },
+        ]
+      : []),
     ...(canExpand
       ? [
           {

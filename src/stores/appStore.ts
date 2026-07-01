@@ -308,6 +308,7 @@ export const useAppStore = create<AppState>()(
             id: generateId(),
             taskName: task.name,
             enabled: isControllerCompatible, // 不兼容默认控制器的任务不勾选
+            loop: false,
             optionValues,
             expanded: true, // 新建配置时自动展开所有任务
           });
@@ -461,6 +462,7 @@ export const useAppStore = create<AppState>()(
         id: generateId(),
         taskName: task.name,
         enabled: true,
+        loop: false,
         optionValues,
         expanded: shouldExpand, // 有选项或描述的任务自动展开
       };
@@ -511,6 +513,7 @@ export const useAppStore = create<AppState>()(
           id: generateId(),
           taskName: presetTask.name,
           enabled: presetTask.enabled !== false,
+          loop: false,
           optionValues,
           expanded: true,
         });
@@ -588,6 +591,7 @@ export const useAppStore = create<AppState>()(
         taskName,
         customName: taskOptions?.customName,
         enabled: taskOptions?.enabled ?? true,
+        loop: false,
         optionValues,
         expanded: taskOptions?.expanded ?? true,
       };
@@ -639,6 +643,20 @@ export const useAppStore = create<AppState>()(
                 ...i,
                 selectedTasks: i.selectedTasks.map((t) =>
                   t.id === taskId ? { ...t, enabled: !t.enabled } : t,
+                ),
+              }
+            : i,
+        ),
+      })),
+
+    toggleTaskLoop: (instanceId, taskId) =>
+      set((state) => ({
+        instances: state.instances.map((i) =>
+          i.id === instanceId
+            ? {
+                ...i,
+                selectedTasks: i.selectedTasks.map((t) =>
+                  t.id === taskId ? { ...t, loop: !t.loop } : t,
                 ),
               }
             : i,
@@ -1055,6 +1073,7 @@ export const useAppStore = create<AppState>()(
                 taskName: t.taskName,
                 customName: t.customName,
                 enabled: t.enabled,
+                loop: t.loop ?? false,
                 optionValues: t.optionValues,
                 expanded: prevExpandedByTask.get(t.id) ?? false,
               };
@@ -1077,6 +1096,7 @@ export const useAppStore = create<AppState>()(
               taskName: t.taskName,
               customName: t.customName,
               enabled: t.enabled,
+              loop: t.loop ?? false,
               optionValues: mergedValues,
               expanded: prevExpandedByTask.get(t.id) ?? false,
             };
@@ -1805,6 +1825,7 @@ export const useAppStore = create<AppState>()(
           taskName: t.taskName,
           customName: t.customName,
           enabled: t.enabled,
+          loop: t.loop ?? false,
           optionValues: cleanOptionValues(t.optionValues, pi),
           expanded: false,
         })),
@@ -2068,6 +2089,7 @@ function generateConfig(): MxuConfig {
         taskName: t.taskName,
         customName: t.customName,
         enabled: t.enabled,
+        loop: t.loop,
         optionValues: t.optionValues,
       })),
       schedulePolicies: inst.schedulePolicies,

@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, ChevronRight, X, Loader2, FileText, Link, AlertCircle } from 'lucide-react';
+import { GripVertical, ChevronRight, X, Loader2, FileText, Link, AlertCircle, Repeat } from 'lucide-react';
 import { useAppStore, type TaskRunStatus } from '@/stores/appStore';
 import { maaService } from '@/services/maaService';
 import { useResolvedContent } from '@/services/contentResolver';
@@ -304,6 +304,7 @@ export function TaskItem({ instanceId, task }: TaskItemProps) {
   const {
     projectInterface,
     toggleTaskEnabled,
+    toggleTaskLoop,
     toggleTaskExpanded,
     removeTaskFromInstance,
     confirmBeforeDelete,
@@ -665,6 +666,8 @@ export function TaskItem({ instanceId, task }: TaskItemProps) {
           moveToTop: t('contextMenu.moveToTop'),
           moveToBottom: t('contextMenu.moveToBottom'),
           delete: t('contextMenu.deleteTask'),
+          loopOn: t('taskList.loopOn'),
+          loopOff: t('taskList.loopOff'),
         },
         isEnabled: task.enabled,
         isExpanded: !!task.expanded,
@@ -672,6 +675,7 @@ export function TaskItem({ instanceId, task }: TaskItemProps) {
         isFirst: taskIndex === 0,
         isLast: taskIndex === tasks.length - 1,
         isLocked: isInstanceRunning,
+        isLooping: !!task.loop,
         onDuplicate: () => duplicateTask(instanceId, task.id),
         onRename: () => {
           setEditName(task.customName || '');
@@ -690,6 +694,7 @@ export function TaskItem({ instanceId, task }: TaskItemProps) {
           }
           setShowDeleteConfirm(true);
         },
+        onToggleLoop: () => toggleTaskLoop(instanceId, task.id),
       });
 
       showMenu(e, menuItems);
@@ -702,6 +707,7 @@ export function TaskItem({ instanceId, task }: TaskItemProps) {
       getActiveInstance,
       duplicateTask,
       toggleTaskEnabled,
+      toggleTaskLoop,
       toggleTaskExpanded,
       moveTaskUp,
       moveTaskDown,
@@ -830,6 +836,23 @@ export function TaskItem({ instanceId, task }: TaskItemProps) {
             <AlertCircle className="w-3.5 h-3.5 text-warning absolute -top-1 -right-1" />
           )}
         </label>
+
+        {/* 循环执行开关 */}
+        <button
+          type="button"
+          className={clsx(
+            'flex items-center justify-center w-4 h-4 rounded border transition-colors shrink-0',
+            task.loop
+              ? 'border-accent text-accent'
+              : 'border-border-strong text-text-muted hover:text-text-primary',
+            isInstanceRunning && 'cursor-not-allowed opacity-50',
+          )}
+          onClick={() => toggleTaskLoop(instanceId, task.id)}
+          disabled={isInstanceRunning}
+          title={task.loop ? t('taskList.loopOn') : t('taskList.loopOff')}
+        >
+          <Repeat size={11} />
+        </button>
 
         {/* 任务名称 + 展开区域容器 */}
         <div className="flex-1 flex items-center min-w-0">

@@ -1165,6 +1165,68 @@ export function Toolbar({ showAddPanel, onToggleAddPanel, className }: ToolbarPr
           startedTaskIds.push(...trailingTaskIds);
         }
 
+        // 等待所有任务完成
+        if (startedTaskIds.length > 0) {
+          const allResult = await maaService.waitForTasks(targetId, startedTaskIds);
+          if (!allResult.allDone || allResult.stopped) {
+            log.info(`实例 ${targetInstance.name}: 任务未正常完成或被用户停止`);
+            return false;
+          }
+        }
+
+        // 检查是否有循环任务需要重复执行
+        const hasLoopingTasks = useAppStore
+          .getState()
+          .instances.find((i) => i.id === targetId)
+          ?.selectedTasks.some((t) => t.enabled && t.loop);
+
+        if (hasLoopingTasks) {
+          log.info(`实例 ${targetInstance.name}: 检测到循环任务，进入循环执行阶段`);
+          let loopCount = 0;
+
+          while (true) {
+            // 检查实例是否仍在运行（用户可能已手动停止）
+            const currentInstance = useAppStore.getState().instances.find((i) => i.id === targetId);
+            if (!currentInstance || !currentInstance.isRunning) break;
+
+            const loopTasks = currentInstance.selectedTasks.filter((t) => t.enabled && t.loop);
+            if (loopTasks.length === 0) break;
+
+            loopCount++;
+            log.info(
+              `实例 ${targetInstance.name}: 循环第 ${loopCount} 轮, 任务数: ${loopTasks.length}`,
+            );
+
+            const loopRunnableTasks: RunnableTask[] = [];
+            for (const selectedTask of loopTasks) {
+              const specialTask = getMxuSpecialTask(selectedTask.taskName);
+              const taskDef =
+                specialTask?.taskDef ||
+                projectInterface?.task.find((t) => t.name === selectedTask.taskName);
+              if (!taskDef) continue;
+              loopRunnableTasks.push({
+                taskName: selectedTask.taskName,
+                selectedTask,
+                taskDef,
+                specialTask,
+              });
+            }
+
+            if (loopRunnableTasks.length === 0) break;
+
+            const loopTaskIds = await runTaskBatch(loopRunnableTasks, true, '循环');
+            if (loopTaskIds.length === 0) break;
+
+            const loopResult = await maaService.waitForTasks(targetId, loopTaskIds);
+            if (!loopResult.allDone || loopResult.stopped) {
+              log.info(`实例 ${targetInstance.name}: 循环任务未正常完成或被用户停止`);
+              break;
+            }
+          }
+
+          log.info(`实例 ${targetInstance.name}: 循环执行结束, 共 ${loopCount} 轮`);
+        }
+
         log.info(`实例 ${targetInstance.name}: 任务已提交, task_ids:`, startedTaskIds);
 
         // 开始任务时折叠所有任务

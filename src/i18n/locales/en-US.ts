@@ -200,6 +200,8 @@ export default {
     collapseAll: 'Collapse All',
     expandAll: 'Expand All',
     addTask: 'Add Task',
+    loopOn: 'Loop',
+    loopOff: 'Stop Looping',
     noTasks: 'No tasks',
     dragToReorder: 'Drag to reorder',
     startTasks: 'Start Tasks',

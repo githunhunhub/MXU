@@ -20,6 +20,7 @@ export interface SavedTask {
   taskName: string; // 对应 interface 中的 task.name
   customName?: string; // 用户自定义名称
   enabled: boolean;
+  loop?: boolean;
   optionValues: Record<string, OptionValue>;
 }
 

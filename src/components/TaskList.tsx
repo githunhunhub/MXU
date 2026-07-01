@@ -141,6 +141,7 @@ function useImportConfigActions(instanceId: string) {
           return {
             ...task,
             id: generateId(),
+            loop: task.loop ?? false,
             optionValues: {
               ...defaultValues,
               ...cleanedValues,
@@ -148,7 +149,7 @@ function useImportConfigActions(instanceId: string) {
             expanded: true,
           };
         })
-        .filter((task): task is SavedTask & { expanded: boolean } => task !== null);
+        .filter((task): task is SavedTask & { expanded: boolean; loop: boolean } => task !== null);
 
       // 任务写入后 PresetSelector 自动消失，无需调用 skipPreset（避免触发 showAddTaskPanel）
       updateInstance(instanceId, {

@@ -193,6 +193,8 @@ export default {
     collapseAll: '全部摺疊',
     expandAll: '全部展開',
     addTask: '新增任務',
+    loopOn: '循環執行',
+    loopOff: '取消循環',
     noTasks: '暫無任務',
     dragToReorder: '拖動以重新排序',
     startTasks: '開始任務',

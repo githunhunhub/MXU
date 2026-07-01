@@ -137,12 +137,15 @@ export function ActionItem({
           moveToTop: t('contextMenu.moveToTop'),
           moveToBottom: t('contextMenu.moveToBottom'),
           delete: t('contextMenu.deleteAction'),
+          loopOn: t('contextMenu.loopOn'),
+          loopOff: t('contextMenu.loopOff'),
         },
         isEnabled: currentAction.enabled,
         isExpanded: expanded,
         isFirst: index === 0,
         isLast: index === total - 1,
         isLocked: !!disabled,
+        isLooping: false,
         onDuplicate: () => duplicatePreAction(instanceId, action.id),
         onRename: () => {
           setEditName(currentAction.customName || '');
@@ -155,6 +158,7 @@ export function ActionItem({
         onMoveToTop: () => reorderPreActions(instanceId, index, 0),
         onMoveToBottom: () => reorderPreActions(instanceId, index, total - 1),
         onDelete: handleRemove,
+        onToggleLoop: () => {},
       });
 
       showMenu(e, menuItems);

@@ -214,6 +214,7 @@ export interface SelectedTask {
   taskName: string;
   customName?: string; // 用户自定义名称
   enabled: boolean;
+  loop: boolean;
   optionValues: Record<string, OptionValue>;
   expanded: boolean;
 }

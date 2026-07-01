@@ -197,6 +197,8 @@ export default {
     collapseAll: '모두 접기',
     expandAll: '모두 펼치기',
     addTask: '작업 추가',
+    loopOn: '반복 실행',
+    loopOff: '반복 해제',
     noTasks: '작업이 없습니다',
     dragToReorder: '드래그하여 순서 변경',
     startTasks: '실행 시작',

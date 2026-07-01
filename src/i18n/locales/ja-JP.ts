@@ -198,6 +198,8 @@ export default {
     collapseAll: 'すべて折りたたむ',
     expandAll: 'すべて展開',
     addTask: 'タスクを追加',
+    loopOn: 'ループ実行',
+    loopOff: 'ループ解除',
     noTasks: 'タスクがありません',
     dragToReorder: 'ドラッグして並べ替え',
     startTasks: '実行開始',
