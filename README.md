@@ -93,9 +93,17 @@ winget install OpenJS.NodeJS
 npm install -g pnpm
 ```
 
+**Visual Studio Build Tools** (Windows)
+
+Windows 上编译 Rust 项目需要 MSVC 链接器，需安装 [Build Tools for Visual Studio](https://visualstudio.microsoft.com/visual-cpp-build-tools/)，安装时勾选 **"使用 C++ 的桌面开发"** 工作负载。macOS / Linux 无需此步骤。
+
 **Rust** (>= 1.70)
 
 ```bash
+# Windows (winget)
+winget install Rustlang.Rustup
+
+# macOS / Linux
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source $HOME/.cargo/env
 ```
