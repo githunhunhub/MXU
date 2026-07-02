@@ -104,6 +104,7 @@ export function Toolbar({ showAddPanel, onToggleAddPanel, className }: ToolbarPr
   );
   const preActionControlledInstanceIdRef = useRef<string | null>(null);
   const preActionStopRequestedRef = useRef(false);
+  const loopStopRequestedRef = useRef(false);
   const lastStartCancelledRef = useRef(false);
 
   const instance = getActiveInstance();
@@ -1183,9 +1184,11 @@ export function Toolbar({ showAddPanel, onToggleAddPanel, className }: ToolbarPr
         if (hasLoopingTasks) {
           log.info(`实例 ${targetInstance.name}: 检测到循环任务，进入循环执行阶段`);
           let loopCount = 0;
+          loopStopRequestedRef.current = false;
 
           while (true) {
             // 检查实例是否仍在运行（用户可能已手动停止）
+            if (loopStopRequestedRef.current) break;
             const currentInstance = useAppStore.getState().instances.find((i) => i.id === targetId);
             if (!currentInstance || !currentInstance.isRunning) break;
 
@@ -1218,7 +1221,7 @@ export function Toolbar({ showAddPanel, onToggleAddPanel, className }: ToolbarPr
             if (loopTaskIds.length === 0) break;
 
             const loopResult = await maaService.waitForTasks(targetId, loopTaskIds);
-            if (!loopResult.allDone || loopResult.stopped) {
+            if (!loopResult.allDone || loopResult.stopped || loopStopRequestedRef.current) {
               log.info(`实例 ${targetInstance.name}: 循环任务未正常完成或被用户停止`);
               break;
             }
@@ -1392,6 +1395,7 @@ export function Toolbar({ showAddPanel, onToggleAddPanel, className }: ToolbarPr
   const performStop = async (targetInstanceId: string) => {
     if (isStopping) return;
     setIsStopping(true);
+    loopStopRequestedRef.current = true;
     let keepStoppingForPreAction = false;
     try {
       if (preActionControlledInstanceIdRef.current === targetInstanceId) {
