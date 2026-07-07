@@ -1200,6 +1200,12 @@ export function Toolbar({ showAddPanel, onToggleAddPanel, className }: ToolbarPr
               `实例 ${targetInstance.name}: 循环第 ${loopCount} 轮, 任务数: ${loopTasks.length}`,
             );
 
+            // 清理上一轮的 agent 进程，避免累积
+            if (loopCount > 1) {
+              log.info(`实例 ${targetInstance.name}: 循环第 ${loopCount} 轮, 清理上一轮 agent`);
+              await maaService.stopAgent(targetId);
+            }
+
             const loopRunnableTasks: RunnableTask[] = [];
             for (const selectedTask of loopTasks) {
               const specialTask = getMxuSpecialTask(selectedTask.taskName);
