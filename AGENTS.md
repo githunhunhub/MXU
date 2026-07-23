@@ -89,12 +89,12 @@ interface.json → interfaceLoader.ts → Zustand Store
 
 ### 3.2 双模式运行（Tauri Desktop + Browser WebUI）
 
-| 特性 | Tauri 模式 | WebUI 模式 |
-|------|-----------|-----------|
-| 后端调用 | `invoke()` Tauri 命令 | HTTP REST (`apiGet/apiPost`) |
-| 配置存储 | `mxu.json` 文件 | `localStorage` + 后端缓存 |
-| 实时事件 | Tauri `listen()` | WebSocket |
-| 检测函数 | `isTauri()` (`window.__TAURI__`) | 同 |
+| 特性     | Tauri 模式                       | WebUI 模式                   |
+| -------- | -------------------------------- | ---------------------------- |
+| 后端调用 | `invoke()` Tauri 命令            | HTTP REST (`apiGet/apiPost`) |
+| 配置存储 | `mxu.json` 文件                  | `localStorage` + 后端缓存    |
+| 实时事件 | Tauri `listen()`                 | WebSocket                    |
+| 检测函数 | `isTauri()` (`window.__TAURI__`) | 同                           |
 
 ### 3.3 Zustand Store 模式
 
@@ -104,7 +104,9 @@ interface.json → interfaceLoader.ts → Zustand Store
 
 ```tsx
 const theme = useAppStore((s) => s.theme);
-const { theme, accent } = useAppStore(useShallow((s) => ({ theme: s.theme, accent: s.accentColor })));
+const { theme, accent } = useAppStore(
+  useShallow((s) => ({ theme: s.theme, accent: s.accentColor })),
+);
 ```
 
 ### 3.4 Pipeline Override 生成
@@ -122,15 +124,15 @@ PI V2 选项通过 `src/utils/pipelineOverride.ts` 转换为 MaaFramework JSON�
 
 7 个内置 Custom Action 任务（`src/types/specialTasks.ts`）：
 
-| 任务 | Action | 用途 |
-|------|--------|------|
-| `MXU_SLEEP` | `MXU_SLEEP_ACTION` | 倒计时等待 |
-| `MXU_WAITUNTIL` | `MXU_WAITUNTIL_ACTION` | 等到指定时间 |
-| `MXU_LAUNCH` | `MXU_LAUNCH_ACTION` | 启动外部程序 |
-| `MXU_WEBHOOK` | `MXU_WEBHOOK_ACTION` | 发送 HTTP Webhook |
-| `MXU_NOTIFY` | `MXU_NOTIFY_ACTION` | 系统通知 |
-| `MXU_KILLPROC` | `MXU_KILLPROC_ACTION` | 终止进程 |
-| `MXU_POWER` | `MXU_POWER_ACTION` | 关机/重启/睡眠/熄屏 |
+| 任务            | Action                 | 用途                |
+| --------------- | ---------------------- | ------------------- |
+| `MXU_SLEEP`     | `MXU_SLEEP_ACTION`     | 倒计时等待          |
+| `MXU_WAITUNTIL` | `MXU_WAITUNTIL_ACTION` | 等到指定时间        |
+| `MXU_LAUNCH`    | `MXU_LAUNCH_ACTION`    | 启动外部程序        |
+| `MXU_WEBHOOK`   | `MXU_WEBHOOK_ACTION`   | 发送 HTTP Webhook   |
+| `MXU_NOTIFY`    | `MXU_NOTIFY_ACTION`    | 系统通知            |
+| `MXU_KILLPROC`  | `MXU_KILLPROC_ACTION`  | 终止进程            |
+| `MXU_POWER`     | `MXU_POWER_ACTION`     | 关机/重启/睡眠/熄屏 |
 
 设计：`target: [0,0,1,1]` + `skipScreenshot: true`，选项通过 `pipeline_override.custom_action_param` 传参。添加新任务参见 `docs/add-special-task.md`。
 
@@ -191,38 +193,38 @@ PI V2 选项通过 `src/utils/pipelineOverride.ts` 转换为 MaaFramework JSON�
 
 以下手册提供特定开发场景的详细指引，**按需读取**：
 
-| 场景 | 文档 | 何时阅读 |
-|------|------|----------|
+| 场景              | 文档                                                 | 何时阅读                                |
+| ----------------- | ---------------------------------------------------- | --------------------------------------- |
 | 新增 MXU 特殊任务 | [docs/add-special-task.md](docs/add-special-task.md) | 添加基于 Custom Action 的内置功能任务时 |
-| AI 深度开发参考 | [docs/vibecoding-guide.md](docs/vibecoding-guide.md) | 需要全面了解项目架构、模式、约定时 |
+| AI 深度开发参考   | [docs/vibecoding-guide.md](docs/vibecoding-guide.md) | 需要全面了解项目架构、模式、约定时      |
 
 ## 6. 关键文件速查
 
-| 需求 | 文件 |
-|------|------|
-| PI V2 类型定义 | `src/types/interface.ts` |
-| MXU 特殊任务 | `src/types/specialTasks.ts` |
-| 配置类型 | `src/types/config.ts` |
-| MaaFramework 类型 | `src/types/maa.ts` |
-| Zustand Store | `src/stores/appStore.ts` |
-| Store 类型 | `src/stores/types.ts` |
-| MaaFramework 服务 | `src/services/maaService.ts` |
-| 配置持久化 | `src/services/configService.ts` |
-| PI 加载器 | `src/services/interfaceLoader.ts` |
-| Pipeline Override | `src/utils/pipelineOverride.ts` |
-| HTTP API 工具 | `src/utils/backendApi.ts` |
-| 日志系统 | `src/utils/logger.ts` |
-| 主题管理 | `src/themes/index.ts` |
-| i18n 配置 | `src/i18n/index.ts` |
-| 主应用 | `src/App.tsx` |
-| Vite 配置 | `vite.config.ts` |
-| Tauri 配置 | `src-tauri/tauri.conf.json` |
-| Cargo 配置 | `src-tauri/Cargo.toml` |
-| 权限配置 | `src-tauri/capabilities/default.json` |
-| MaaFramework 命令 | `src-tauri/src/commands/maa_core.rs` |
-| Custom Actions | `src-tauri/src/mxu_actions.rs` |
-| Axum 服务器 | `src-tauri/src/web_server.rs` |
-| App 构建 | `src-tauri/src/lib.rs` |
+| 需求              | 文件                                  |
+| ----------------- | ------------------------------------- |
+| PI V2 类型定义    | `src/types/interface.ts`              |
+| MXU 特殊任务      | `src/types/specialTasks.ts`           |
+| 配置类型          | `src/types/config.ts`                 |
+| MaaFramework 类型 | `src/types/maa.ts`                    |
+| Zustand Store     | `src/stores/appStore.ts`              |
+| Store 类型        | `src/stores/types.ts`                 |
+| MaaFramework 服务 | `src/services/maaService.ts`          |
+| 配置持久化        | `src/services/configService.ts`       |
+| PI 加载器         | `src/services/interfaceLoader.ts`     |
+| Pipeline Override | `src/utils/pipelineOverride.ts`       |
+| HTTP API 工具     | `src/utils/backendApi.ts`             |
+| 日志系统          | `src/utils/logger.ts`                 |
+| 主题管理          | `src/themes/index.ts`                 |
+| i18n 配置         | `src/i18n/index.ts`                   |
+| 主应用            | `src/App.tsx`                         |
+| Vite 配置         | `vite.config.ts`                      |
+| Tauri 配置        | `src-tauri/tauri.conf.json`           |
+| Cargo 配置        | `src-tauri/Cargo.toml`                |
+| 权限配置          | `src-tauri/capabilities/default.json` |
+| MaaFramework 命令 | `src-tauri/src/commands/maa_core.rs`  |
+| Custom Actions    | `src-tauri/src/mxu_actions.rs`        |
+| Axum 服务器       | `src-tauri/src/web_server.rs`         |
+| App 构建          | `src-tauri/src/lib.rs`                |
 
 ## 7. 构建与开发命令
 

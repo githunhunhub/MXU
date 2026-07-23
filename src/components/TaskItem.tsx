@@ -2,7 +2,16 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, ChevronRight, X, Loader2, FileText, Link, AlertCircle, Repeat } from 'lucide-react';
+import {
+  GripVertical,
+  ChevronRight,
+  X,
+  Loader2,
+  FileText,
+  Link,
+  AlertCircle,
+  Repeat,
+} from 'lucide-react';
 import { useAppStore, type TaskRunStatus } from '@/stores/appStore';
 import { maaService } from '@/services/maaService';
 import { useResolvedContent } from '@/services/contentResolver';
