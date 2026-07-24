@@ -1234,6 +1234,7 @@ export const useAppStore = create<AppState>()(
                 customName: t.customName,
                 enabled: t.enabled,
                 enabledByController: t.enabledByController,
+                loop: t.loop ?? false,
                 optionValues: mergedValues,
                 expanded: prevExpandedByTask.get(t.id) ?? false,
               };
