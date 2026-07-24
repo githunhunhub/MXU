@@ -149,6 +149,7 @@ export interface AppState {
   addTaskToInstance: (
     instanceId: string,
     task: { name: string; option?: string[]; description?: string },
+    options?: { prepend?: boolean },
   ) => void;
   /** v2.3.0: 应用预设配置到实例 */
   applyPreset: (instanceId: string, presetName: string) => void;
@@ -185,6 +186,9 @@ export interface AppState {
     optionKey: string,
     value: OptionValue,
   ) => void;
+  /** 全局任务设置值（对应 interface.global_option），跨实例/配置共享 */
+  globalOptionValues: Record<string, OptionValue>;
+  setGlobalOptionValue: (optionKey: string, value: OptionValue) => void;
   selectAllTasks: (instanceId: string, enabled: boolean) => void;
   collapseAllTasks: (instanceId: string, expanded: boolean) => void;
   renameTask: (instanceId: string, taskId: string, newName: string) => void;
@@ -381,6 +385,11 @@ export interface AppState {
   /** Web 服务器监听端口（默认 12701，重启生效） */
   webServerPort: number;
   setWebServerPort: (port: number) => void;
+
+  /** 后端真实 OS（运行时从后端获取，'' = 未知；用于控制器平台过滤、更新资产匹配等，不持久化） */
+  backendOS: string;
+  backendArch: string;
+  setBackendOS: (os: string, arch: string) => void;
 
   // 托盘设置
   minimizeToTray: boolean;

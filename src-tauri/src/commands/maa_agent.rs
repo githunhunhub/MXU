@@ -41,14 +41,14 @@ struct AgentOutputBatchState {
     flush_running: bool,
 }
 
-struct AgentOutputBatcher {
+pub(crate) struct AgentOutputBatcher {
     app: tauri::AppHandle,
     instance_id: String,
     state: Mutex<AgentOutputBatchState>,
 }
 
 impl AgentOutputBatcher {
-    fn new(app: tauri::AppHandle, instance_id: String) -> Arc<Self> {
+    pub(crate) fn new(app: tauri::AppHandle, instance_id: String) -> Arc<Self> {
         Arc::new(Self {
             app,
             instance_id,
@@ -62,7 +62,7 @@ impl AgentOutputBatcher {
         })
     }
 
-    fn enqueue(self: &Arc<Self>, stream: &str, line: &str) {
+    pub(crate) fn enqueue(self: &Arc<Self>, stream: &str, line: &str) {
         let should_spawn = {
             let mut state = self.state.lock().unwrap();
             state.lines.push(line.to_string());
@@ -247,7 +247,11 @@ fn classify_child_exec(child_exec: &str) -> ChildExecKind {
 /// - 裸命令名（如 `python` / `node`）-> 原样返回，由系统 PATH 解析
 /// - 相对路径型 child_exec -> 先基于 cwd 拼接，再通过 `normalize_path` 规范化
 /// - 绝对路径 / 带盘符前缀路径 -> 不拼接 cwd，但会通过 `normalize_path` 规范化
-fn resolve_child_exec_path(child_exec: &str, cwd: &str) -> PathBuf {
+///
+/// 供 Agent 启动与 pretask 执行共用，确保相对入口的解析行为一致：Windows 下相对
+/// 可执行路径会相对“父进程当前目录”而非子进程 `current_dir` 解析，因此必须在拼好
+/// 绝对路径后再交给 `Command`，否则会出现“系统找不到指定的路径 (os error 3)”。
+pub(crate) fn resolve_child_exec_path(child_exec: &str, cwd: &str) -> PathBuf {
     match classify_child_exec(child_exec) {
         // 空字符串由上层提前校验；这里保守返回原值，避免误拼 cwd。
         ChildExecKind::Empty => PathBuf::from(child_exec),
@@ -259,6 +263,24 @@ fn resolve_child_exec_path(child_exec: &str, cwd: &str) -> PathBuf {
         }
         ChildExecKind::AbsoluteOrPrefixedPath => normalize_path(child_exec),
     }
+}
+
+/// Windows Application Control policy rejection (Smart App Control).
+///
+/// `CreateProcess` returns this when an executable is blocked as untrusted.
+/// Typical message: "An Application Control policy has blocked this file."
+#[cfg(windows)]
+const WINDOWS_ERROR_APPLICATION_CONTROL_BLOCKED: i32 = 4551;
+
+fn agent_spawn_hint_tag(error: &std::io::Error) -> Option<&'static str> {
+    if error.kind() == std::io::ErrorKind::NotFound {
+        return Some(" [[hint:spawn_file_not_found]]");
+    }
+    #[cfg(windows)]
+    if error.raw_os_error() == Some(WINDOWS_ERROR_APPLICATION_CONTROL_BLOCKED) {
+        return Some(" [[hint:spawn_app_control]]");
+    }
+    None
 }
 
 /// 启动单个 Agent 子进程并完成连接
@@ -370,10 +392,14 @@ async fn start_single_agent(
         }
 
         let mut child = cmd.spawn().map_err(|e| {
-            format!(
+            let mut msg = format!(
                 "Failed to spawn agent #{}: {} (path: {:?})",
                 agent_index, e, exec_path
-            )
+            );
+            if let Some(tag) = agent_spawn_hint_tag(&e) {
+                msg.push_str(tag);
+            }
+            msg
         })?;
 
         // agent 日志文件路径（延迟创建：仅在有实际输出时才打开文件）

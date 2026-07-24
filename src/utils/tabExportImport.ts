@@ -1,6 +1,7 @@
 import type { SavedTask } from '@/types/config';
 import type { ActionConfig, Instance, OptionValue } from '@/types/interface';
 import { isTauri } from '@/utils/paths';
+import { cacheTaskEnabledForController } from '@/utils/taskControllerCache';
 import { toast } from 'sonner';
 
 const PROTOCOL_SEGMENT = 'tab-sharing';
@@ -27,13 +28,15 @@ type WireOptionValue =
   | { t: 's'; c: string } // select:   caseName
   | { t: 'cb'; c: string[] } // checkbox: caseNames
   | { t: 'sw'; v: boolean } // switch:   value
-  | { t: 'in'; v: Record<string, string> }; // input: values
+  | { t: 'in'; v: Record<string, string> } // input: values
+  | { t: 'hk'; v: Record<string, string> };
 
 interface WireTask {
   i: string; // id
   tn: string; // taskName
   cn?: string; // customName
   e: boolean; // enabled
+  ec?: Record<string, boolean>; // enabledByController
   ov: Record<string, WireOptionValue>; // optionValues
 }
 
@@ -67,6 +70,10 @@ function encodeOptionValue(v: OptionValue): WireOptionValue {
       return { t: 'sw', v: v.value };
     case 'input':
       return { t: 'in', v: v.values };
+    case 'hotkey':
+      return { t: 'hk', v: v.values };
+    default:
+      throw new Error('invalid_format');
   }
 }
 
@@ -80,6 +87,7 @@ function encodeTask(task: SavedTask): WireTask {
     ),
   };
   if (task.customName !== undefined) wire.cn = task.customName;
+  if (task.enabledByController !== undefined) wire.ec = task.enabledByController;
   return wire;
 }
 
@@ -119,6 +127,8 @@ function decodeOptionValue(w: WireOptionValue): OptionValue {
       return { type: 'switch', value: w.v };
     case 'in':
       return { type: 'input', values: w.v };
+    case 'hk':
+      return { type: 'hotkey', values: w.v };
     default:
       throw new Error('invalid_format');
   }
@@ -130,6 +140,7 @@ function decodeTask(w: WireTask): SavedTask {
     taskName: w.tn,
     customName: w.cn,
     enabled: w.e,
+    enabledByController: w.ec,
     optionValues: Object.fromEntries(
       Object.entries(w.ov).map(([k, v]) => [k, decodeOptionValue(v)]),
     ),
@@ -249,6 +260,11 @@ export async function buildTabConfigExportText(
       taskName: t.taskName,
       customName: t.customName,
       enabled: t.enabled,
+      enabledByController: cacheTaskEnabledForController(
+        t.enabledByController,
+        instance.controllerName,
+        t.enabled,
+      ),
       optionValues: t.optionValues,
     })),
     preActions: instance.preActions,

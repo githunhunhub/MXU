@@ -1047,6 +1047,22 @@ export const maaService = {
   },
 
   /**
+   * 检查当前电脑是否处于锁屏状态（仅 Tauri + Windows 生效）
+   * 检测异常或非 Tauri 环境按未锁屏处理，避免误拦截任务启动
+   */
+  async isWorkstationLocked(): Promise<boolean> {
+    try {
+      if (isTauri()) {
+        return await invoke<boolean>('is_workstation_locked');
+      }
+      return false;
+    } catch (err) {
+      log.warn('检测锁屏状态失败，按未锁屏处理:', err);
+      return false;
+    }
+  },
+
+  /**
    * 以管理员权限重启应用
    * @returns 如果成功启动新进程会退出当前进程，否则返回错误信息
    */
@@ -1116,6 +1132,30 @@ export const maaService = {
   async setPreActionStop(instanceId: string, stop: boolean): Promise<void> {
     if (!isTauri()) return;
     await invoke('set_pre_action_stop', { instanceId, stop });
+  },
+
+  /**
+   * 执行 PI v2.7.0 pretask 外部程序（连接 Controller 前调用）。
+   * args 以数组形式直传后端，保留 option 序列化生成的 JSON 参数。
+   */
+  async runPretask(
+    instanceId: string,
+    program: string,
+    args: string[],
+    cwd?: string,
+  ): Promise<number> {
+    if (!isTauri()) {
+      throw new Error('此功能仅在 Tauri 环境中可用');
+    }
+    log.info('执行预任务:', program, args);
+    const exitCode = await invoke<number>('run_pretask', {
+      instanceId,
+      program,
+      args,
+      cwd: cwd || null,
+    });
+    log.info('预任务执行完成, 退出码:', exitCode);
+    return exitCode;
   },
 
   /**

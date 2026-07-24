@@ -31,6 +31,13 @@ import type {
 } from '@/types/interface';
 import type { ConnectionStatus, TaskStatus } from '@/types/maa';
 import { getMxuSpecialTask, isMxuSpecialTask, MXU_SPECIAL_TASKS } from '@/types/specialTasks';
+import {
+  getPretaskItems,
+  pretaskName,
+  isPretaskName,
+  getPretaskItem,
+  resolveCompatTaskDef,
+} from '@/types/pretasks';
 import { decryptCdk, encryptCdk } from '@/utils/cdkCrypto';
 import { loggers } from '@/utils/logger';
 import { findSwitchCase } from '@/utils/optionHelpers';
@@ -58,6 +65,7 @@ import {
   sanitizeOptionValues,
 } from './helpers';
 import { persistRuntimeLogs } from '@/utils/runtimeLogPersistence';
+import { cacheTaskEnabledForController } from '@/utils/taskControllerCache';
 // 从独立模块导入类型和辅助函数
 import type { AppState, LogEntry, TaskRunStatus } from './types';
 
@@ -98,6 +106,59 @@ function cleanOptionValues(
 ): Record<string, OptionValue> {
   if (!pi?.option) return {};
   return sanitizeOptionValues(optionValues, pi.option, (message) => loggers.config.warn(message));
+}
+
+function updateSelectedName(
+  selectedNames: Record<string, string>,
+  instanceId: string,
+  name: string | undefined,
+): Record<string, string> {
+  const updatedNames = { ...selectedNames };
+  if (name === undefined) {
+    delete updatedNames[instanceId];
+  } else {
+    updatedNames[instanceId] = name;
+  }
+  return updatedNames;
+}
+
+function isTaskControllerCompatible(
+  taskDef: { controller?: string[] } | undefined,
+  controllerName: string | undefined,
+): boolean {
+  return (
+    !controllerName ||
+    !taskDef?.controller ||
+    taskDef.controller.length === 0 ||
+    taskDef.controller.includes(controllerName)
+  );
+}
+
+function resolveTaskEnabledForController(
+  task: SelectedTask,
+  taskDef: { controller?: string[] } | undefined,
+  previousControllerName: string | undefined,
+  controllerName: string,
+  enabledByController: Record<string, boolean>,
+): boolean {
+  if (!isTaskControllerCompatible(taskDef, controllerName)) return false;
+
+  if (Object.prototype.hasOwnProperty.call(enabledByController, controllerName)) {
+    return enabledByController[controllerName];
+  }
+
+  // 首次进入新控制器时继承当前值，但不能继承由“不支持该任务”产生的 false。
+  if (isTaskControllerCompatible(taskDef, previousControllerName)) {
+    return task.enabled;
+  }
+
+  const cachedEntries = Object.entries(enabledByController);
+  for (let index = cachedEntries.length - 1; index >= 0; index -= 1) {
+    const [cachedControllerName, enabled] = cachedEntries[index];
+    if (isTaskControllerCompatible(taskDef, cachedControllerName)) return enabled;
+  }
+
+  return task.enabled;
 }
 
 function forwardLogToStdout(message: string) {
@@ -393,6 +454,11 @@ export const useAppStore = create<AppState>()(
               taskName: t.taskName,
               customName: t.customName,
               enabled: t.enabled,
+              enabledByController: cacheTaskEnabledForController(
+                t.enabledByController,
+                instanceToClose.controllerName,
+                t.enabled,
+              ),
               optionValues: t.optionValues,
             })),
             schedulePolicies: instanceToClose.schedulePolicies,
@@ -424,6 +490,16 @@ export const useAppStore = create<AppState>()(
     updateInstance: (id, updates) =>
       set((state) => ({
         instances: state.instances.map((i) => (i.id === id ? { ...i, ...updates } : i)),
+        ...(Object.prototype.hasOwnProperty.call(updates, 'controllerName') && {
+          selectedController: updateSelectedName(
+            state.selectedController,
+            id,
+            updates.controllerName,
+          ),
+        }),
+        ...(Object.prototype.hasOwnProperty.call(updates, 'resourceName') && {
+          selectedResource: updateSelectedName(state.selectedResource, id, updates.resourceName),
+        }),
       })),
 
     renameInstance: (id, newName) =>
@@ -445,7 +521,7 @@ export const useAppStore = create<AppState>()(
     },
 
     // 任务操作
-    addTaskToInstance: (instanceId, task) => {
+    addTaskToInstance: (instanceId, task, options) => {
       const pi = get().projectInterface;
       if (!pi) return;
 
@@ -469,7 +545,15 @@ export const useAppStore = create<AppState>()(
 
       set((state) => ({
         instances: state.instances.map((i) =>
-          i.id === instanceId ? { ...i, selectedTasks: [...i.selectedTasks, newTask] } : i,
+          i.id === instanceId
+            ? {
+                ...i,
+                // prepend: pretask 等前置任务固定置于列表顶部
+                selectedTasks: options?.prepend
+                  ? [newTask, ...i.selectedTasks]
+                  : [...i.selectedTasks, newTask],
+              }
+            : i,
         ),
         lastAddedTaskId: newTask.id, // 记录最近添加的任务 ID
         animatingTaskIds: [...state.animatingTaskIds, newTask.id], // 加入动画列表
@@ -578,11 +662,16 @@ export const useAppStore = create<AppState>()(
         } else if (optionDef.type === 'checkbox') {
           const defaultCases = optionDef.default_case || [];
           optionValues[optionKey] = { type: 'checkbox', caseNames: [...defaultCases] };
-        } else {
-          // select 类型
+        } else if (optionDef.type === 'select') {
           const caseName =
             (optionDef.default_case as string | undefined) || optionDef.cases?.[0]?.name || '';
           optionValues[optionKey] = { type: 'select', caseName };
+        } else if (optionDef.type === 'hotkey') {
+          const values: Record<string, string> = {};
+          for (const input of optionDef.hotkeys || []) {
+            values[input.name] = initialValues?.[input.name] ?? input.default ?? '';
+          }
+          optionValues[optionKey] = { type: 'hotkey', values };
         }
       }
 
@@ -732,6 +821,48 @@ export const useAppStore = create<AppState>()(
       }));
     },
 
+    globalOptionValues: {},
+
+    setGlobalOptionValue: (optionKey, value) => {
+      const pi = get().projectInterface;
+
+      set((state) => {
+        const newValues = { ...state.globalOptionValues, [optionKey]: value };
+
+        // 当选项值改变时，初始化新的嵌套选项（与 setTaskOptionValue 逻辑一致）
+        if (pi?.option) {
+          const optDef = pi.option[optionKey];
+          if (
+            optDef &&
+            (optDef.type === 'switch' || optDef.type === 'select' || !optDef.type) &&
+            'cases' in optDef
+          ) {
+            let selectedCase;
+            if (optDef.type === 'switch') {
+              const isChecked = value.type === 'switch' && value.value;
+              selectedCase = findSwitchCase(optDef.cases, isChecked);
+            } else {
+              const caseName = value.type === 'select' ? value.caseName : optDef.cases?.[0]?.name;
+              selectedCase = optDef.cases?.find((c) => c.name === caseName);
+            }
+
+            if (selectedCase?.option && selectedCase.option.length > 0) {
+              for (const nestedKey of selectedCase.option) {
+                if (!newValues[nestedKey]) {
+                  const nestedDef = pi.option[nestedKey];
+                  if (nestedDef) {
+                    Object.assign(newValues, initializeAllOptionValues([nestedKey], pi.option));
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        return { globalOptionValues: newValues };
+      });
+    },
+
     selectAllTasks: (instanceId, enabled) =>
       set((state) => {
         const { controllerName, resourceName } = getCurrentControllerAndResource(state, instanceId);
@@ -744,7 +875,7 @@ export const useAppStore = create<AppState>()(
               selectedTasks: i.selectedTasks.map((t) => {
                 if (!enabled) return { ...t, enabled: false };
                 // 全选时不兼容的任务显式禁用
-                const taskDef = state.projectInterface?.task.find((td) => td.name === t.taskName);
+                const taskDef = resolveCompatTaskDef(state.projectInterface, t.taskName);
                 if (!isTaskCompatible(taskDef, controllerName, resourceName)) {
                   return { ...t, enabled: false };
                 }
@@ -810,6 +941,9 @@ export const useAppStore = create<AppState>()(
         ...originalTask,
         id: generateId(),
         customName: newCustomName,
+        enabledByController: originalTask.enabledByController
+          ? { ...originalTask.enabledByController }
+          : undefined,
         optionValues: { ...originalTask.optionValues },
       };
 
@@ -905,6 +1039,7 @@ export const useAppStore = create<AppState>()(
         selectedTasks: sourceInstance.selectedTasks.map((t) => ({
           ...t,
           id: generateId(),
+          enabledByController: t.enabledByController ? { ...t.enabledByController } : undefined,
           optionValues: { ...t.optionValues },
         })),
         isRunning: false,
@@ -1044,10 +1179,11 @@ export const useAppStore = create<AppState>()(
         });
       }
 
-      // 获取有效的任务名称集合（包含 interface 任务和 MXU 特殊任务）
+      // 获取有效的任务名称集合（包含 interface 任务、MXU 特殊任务与 pretask 伪任务）
       const validTaskNames = new Set([
         ...(pi?.task.map((t) => t.name) || []),
         ...Object.keys(MXU_SPECIAL_TASKS),
+        ...getPretaskItems(pi).map((item) => pretaskName(item)),
       ]);
 
       const instances: Instance[] = config.instances.map((inst) => {
@@ -1073,8 +1209,32 @@ export const useAppStore = create<AppState>()(
                 taskName: t.taskName,
                 customName: t.customName,
                 enabled: t.enabled,
+                enabledByController: t.enabledByController,
                 loop: t.loop ?? false,
                 optionValues: t.optionValues,
+                expanded: prevExpandedByTask.get(t.id) ?? false,
+              };
+            }
+
+            // pretask 伪任务的 option 引用顶层 pi.option
+            if (isPretaskName(t.taskName)) {
+              const pretaskItem = getPretaskItem(pi, t.taskName);
+              const cleanedValues = cleanOptionValues(t.optionValues, pi);
+              const defaultValues =
+                pretaskItem?.option && pi?.option
+                  ? initializeAllOptionValues(pretaskItem.option, pi.option)
+                  : {};
+              const mergedValues = {
+                ...defaultValues,
+                ...cleanedValues,
+              };
+              return {
+                id: t.id,
+                taskName: t.taskName,
+                customName: t.customName,
+                enabled: t.enabled,
+                enabledByController: t.enabledByController,
+                optionValues: mergedValues,
                 expanded: prevExpandedByTask.get(t.id) ?? false,
               };
             }
@@ -1096,6 +1256,7 @@ export const useAppStore = create<AppState>()(
               taskName: t.taskName,
               customName: t.customName,
               enabled: t.enabled,
+              enabledByController: t.enabledByController,
               loop: t.loop ?? false,
               optionValues: mergedValues,
               expanded: prevExpandedByTask.get(t.id) ?? false,
@@ -1263,6 +1424,18 @@ export const useAppStore = create<AppState>()(
         showAddTaskPanel: detectedNewTaskNames.length > 0,
         // v2.3.0: 恢复预设初始化标记
         presetInitialized: config.presetInitialized ?? false,
+        // 全局任务设置值：以 global_option 的默认值为基底，合并已保存值（保存值优先）
+        globalOptionValues: (() => {
+          const globalKeys = pi?.global_option;
+          if (!globalKeys || globalKeys.length === 0 || !pi?.option) {
+            return cleanOptionValues(config.globalOptionValues || {}, pi);
+          }
+          const defaults = initializeAllOptionValues(globalKeys, pi.option);
+          return {
+            ...defaults,
+            ...cleanOptionValues(config.globalOptionValues || {}, pi),
+          };
+        })(),
       });
 
       // 应用主题（包括强调色）
@@ -1344,20 +1517,41 @@ export const useAppStore = create<AppState>()(
     setSelectedController: (instanceId, controllerName) =>
       set((state) => {
         const pi = state.projectInterface;
-        // 自动取消不兼容任务的勾选
         const updatedInstances = state.instances.map((instance) => {
           if (instance.id !== instanceId)
             return { ...instance, controllerName: instance.controllerName };
 
+          const previousControllerName =
+            state.selectedController[instanceId] ||
+            instance.controllerName ||
+            pi?.controller[0]?.name;
+
           const updatedTasks = instance.selectedTasks.map((task) => {
-            const taskDef = pi?.task.find((t) => t.name === task.taskName);
-            // 如果任务指定了 controller 限制且不包含新控制器，取消勾选
-            if (taskDef?.controller && taskDef.controller.length > 0) {
-              if (!taskDef.controller.includes(controllerName)) {
-                return { ...task, enabled: false };
-              }
-            }
-            return task;
+            const taskDef = resolveCompatTaskDef(pi, task.taskName);
+            const enabledByController =
+              cacheTaskEnabledForController(
+                task.enabledByController,
+                previousControllerName,
+                task.enabled,
+              ) ?? {};
+
+            const enabled = resolveTaskEnabledForController(
+              task,
+              taskDef,
+              previousControllerName,
+              controllerName,
+              enabledByController,
+            );
+
+            return {
+              ...task,
+              enabled,
+              enabledByController: cacheTaskEnabledForController(
+                enabledByController,
+                controllerName,
+                enabled,
+              ),
+            };
           });
 
           return { ...instance, controllerName, selectedTasks: updatedTasks };
@@ -1715,6 +1909,11 @@ export const useAppStore = create<AppState>()(
     webServerPort: 12701,
     setWebServerPort: (port) => set({ webServerPort: port }),
 
+    // 后端真实 OS/架构（运行时从后端获取，不持久化；用于控制器平台过滤、更新资产匹配等）
+    backendOS: '',
+    backendArch: '',
+    setBackendOS: (os, arch) => set({ backendOS: os, backendArch: arch }),
+
     // 是否为开机自启动模式
     isAutoStartMode: false,
     setIsAutoStartMode: (mode) => set({ isAutoStartMode: mode }),
@@ -1825,6 +2024,7 @@ export const useAppStore = create<AppState>()(
           taskName: t.taskName,
           customName: t.customName,
           enabled: t.enabled,
+          enabledByController: t.enabledByController ? { ...t.enabledByController } : undefined,
           loop: t.loop ?? false,
           optionValues: cleanOptionValues(t.optionValues, pi),
           expanded: false,
@@ -2089,6 +2289,11 @@ function generateConfig(): MxuConfig {
         taskName: t.taskName,
         customName: t.customName,
         enabled: t.enabled,
+        enabledByController: cacheTaskEnabledForController(
+          t.enabledByController,
+          inst.controllerName,
+          t.enabled,
+        ),
         loop: t.loop,
         optionValues: t.optionValues,
       })),
@@ -2142,6 +2347,7 @@ function generateConfig(): MxuConfig {
         customAccents: ba?.customAccents ?? state.customAccents,
       };
     })(),
+    globalOptionValues: state.globalOptionValues,
     recentlyClosed: state.recentlyClosed,
     interfaceTaskSnapshot: state.projectInterface?.task.map((t) => t.name) || [],
     newTaskNames: state.newTaskNames,
@@ -2177,6 +2383,7 @@ useAppStore.subscribe(
   (state) => ({
     instances: state.instances,
     activeInstanceId: state.activeInstanceId,
+    globalOptionValues: state.globalOptionValues,
     ...(!_isWebUI && {
       theme: state.theme,
       accentColor: state.accentColor,

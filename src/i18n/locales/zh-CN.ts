@@ -32,6 +32,8 @@ export default {
     dragToReorder: '拖拽以重新排序',
     closeTabConfirmTitle: '关闭配置',
     closeTabConfirmMessage: '确定要关闭「{{name}}」吗？',
+    closeMultiTabConfirmTitle: '关闭多个配置',
+    closeMultiTabConfirmMessage: '确定要关闭 {{count}} 个配置吗？',
   },
 
   // 窗口控制按钮
@@ -48,6 +50,8 @@ export default {
     appearance: '外观',
     hotkeys: '快捷键',
     general: '通用',
+    taskSettings: '任务设置',
+    taskSettingsEmpty: '当前没有可显示的设置项',
     language: '语言',
     backgroundImage: '背景图片',
     backgroundOpacity: '背景不透明度',
@@ -225,7 +229,11 @@ export default {
         '尚未手动选择过窗口，已自动匹配到「{{name}}」。如需更换，请在连接设置中手动选择，下次将记住您的选择。',
       resourceFailed: '资源加载失败',
       startFailed: '任务启动失败',
+      workstationLocked: '检测到电脑处于锁屏状态，请先解锁后再运行任务',
       agentStartParams: 'Agent #{{index}} 启动参数: {{cmd}}  (工作目录: {{cwd}})',
+      agentSpawnHintFileNotFound: '请先检查 Agent 是否被杀软拦截，确认无误后重新覆盖安装。',
+      agentSpawnHintAppControl:
+        '请在「Windows 安全中心 → 应用和浏览器控制 → 智能应用控制」中关闭该功能后重试。',
       needConfig: '请先连接设备并加载资源，或在连接面板保存设备配置',
     },
   },
@@ -309,6 +317,10 @@ export default {
     preActionCompletedNamed: '前置程序 {{name}} 执行完成',
     preActionFailed: '前置程序执行失败: {{error}}',
     preActionExitCode: '前置程序退出码: {{code}}',
+    pretaskStarting: '正在执行预任务: {{name}}',
+    pretaskCompleted: '预任务执行完成: {{name}}',
+    pretaskExitCode: '预任务退出码: {{code}}',
+    pretaskFailed: '预任务执行失败: {{error}}',
     preActionConnectDelay: '等待 {{seconds}} 秒后连接...',
     autoPreActionName: '▶️ 启动 {{name}}',
     autoPreActionAdded: '已自动添加前置程序: {{name}}（默认未启用）',
@@ -326,6 +338,8 @@ export default {
     noMatchingOptions: '无匹配选项',
     incompatibleController: '不支持当前控制器',
     incompatibleResource: '不支持当前资源包',
+    hotkeyPlaceholder: '点击录入快捷键',
+    hotkeyCapturing: '按下快捷键...',
   },
 
   // 预设配置
@@ -447,6 +461,7 @@ export default {
       loadingResource: '正在加载资源: {{name}}',
       resourceLoaded: '资源加载成功: {{name}}',
       resourceFailed: '资源加载失败: {{name}}',
+      resourceFailedHint: '可删除该资源目录后重新覆盖安装再试。',
       // 任务消息
       taskStarting: '任务开始: {{name}}',
       taskSucceeded: '任务完成: {{name}}',
@@ -482,6 +497,7 @@ export default {
     noResults: '没有找到匹配的任务',
     alreadyAdded: '已添加',
     specialTasks: '特殊任务',
+    pretasks: '前置任务',
     allSpecialTasksAdded: '已全部添加',
     collapse: '收起面板',
     ungroupedTasks: '其他',

@@ -85,6 +85,7 @@ import { WebUIBetaBanner } from './components/app/WebUIBetaBanner';
 import { startGlobalCallbackListener } from './components/connection/callbackCache';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { ScrollText } from 'lucide-react';
+import { defaultWindowSize } from '@/types/config';
 
 const log = loggers.app;
 
@@ -167,6 +168,7 @@ function App() {
     setInterfaceTranslations,
     setBasePath,
     setDataPath,
+    setBackendOS,
     setConfigPersistenceReady,
     basePath,
     importConfig,
@@ -208,6 +210,7 @@ function App() {
       setInterfaceTranslations: state.setInterfaceTranslations,
       setBasePath: state.setBasePath,
       setDataPath: state.setDataPath,
+      setBackendOS: state.setBackendOS,
       setConfigPersistenceReady: state.setConfigPersistenceReady,
       basePath: state.basePath,
       importConfig: state.importConfig,
@@ -586,6 +589,8 @@ function App() {
       setProjectInterface(result.interface);
       setBasePath(result.basePath);
       setDataPath(result.dataPath);
+      // 缓存后端真实 OS/架构，供控制器过滤、更新资产匹配、useCmd 开关等消费
+      if (result.backendOS) setBackendOS(result.backendOS, result.backendArch ?? '');
 
       // 设置翻译
       for (const [lang, trans] of Object.entries(result.translations)) {
@@ -611,7 +616,14 @@ function App() {
 
       // 应用保存的窗口大小和位置
       if (config.settings.windowSize) {
-        await setWindowSize(config.settings.windowSize.width, config.settings.windowSize.height);
+        const { width, height } = config.settings.windowSize;
+        if (isValidWindowSize(width, height)) {
+          await setWindowSize(width, height);
+        } else {
+          log.warn('保存的窗口大小无效，已回退默认值:', { width, height });
+          setWindowSizeStore(defaultWindowSize);
+          await setWindowSize(defaultWindowSize.width, defaultWindowSize.height);
+        }
       }
       if (config.settings.windowPosition && isTauri()) {
         const { x, y } = config.settings.windowPosition;

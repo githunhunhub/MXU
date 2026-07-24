@@ -455,11 +455,10 @@ function handleCallback(
       const registeredName = details.res_id !== undefined ? getResName(details.res_id) : undefined;
       const inferredName = inferResInfoFromInstance(instanceId);
       const resourceName = registeredName || inferredName;
+      const resourceLabel = [resourceName, details.path].filter(Boolean).join(' ') || '';
       addLog(instanceId, {
         type: 'error',
-        message: t('logs.messages.resourceFailed', {
-          name: [resourceName, details.path].filter(Boolean).join(' ') || '',
-        }),
+        message: `${t('logs.messages.resourceFailed', { name: resourceLabel })} ${t('logs.messages.resourceFailedHint')}`,
       });
       break;
     }

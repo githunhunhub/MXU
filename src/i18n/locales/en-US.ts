@@ -32,6 +32,8 @@ export default {
     dragToReorder: 'Drag to reorder',
     closeTabConfirmTitle: 'Close Tab',
     closeTabConfirmMessage: 'Are you sure you want to close "{{name}}"?',
+    closeMultiTabConfirmTitle: 'Close Tabs',
+    closeMultiTabConfirmMessage: 'Are you sure you want to close {{count}} tabs?',
   },
 
   // Window controls
@@ -48,6 +50,8 @@ export default {
     appearance: 'Appearance',
     hotkeys: 'Hotkeys',
     general: 'General',
+    taskSettings: 'Task Settings',
+    taskSettingsEmpty: 'No settings available to display',
     language: 'Language',
     backgroundImage: 'Background Image',
     backgroundOpacity: 'Background Opacity',
@@ -232,7 +236,12 @@ export default {
         'No window was previously selected. Automatically matched "{{name}}". To change, select manually in Connection Settings — your choice will be remembered next time.',
       resourceFailed: 'Resource loading failed',
       startFailed: 'Failed to start tasks',
+      workstationLocked: 'The computer is locked. Please unlock it before running tasks.',
       agentStartParams: 'Agent #{{index}} start params: {{cmd}}  (cwd: {{cwd}})',
+      agentSpawnHintFileNotFound:
+        'Check whether antivirus blocked the Agent, then reinstall by overwriting the installation.',
+      agentSpawnHintAppControl:
+        'Turn off Smart App Control under Windows Security → App & browser control, then retry.',
       needConfig:
         'Please connect device and load resource first, or save device config in connection panel',
     },
@@ -318,6 +327,10 @@ export default {
     preActionCompletedNamed: 'Pre-program {{name}} completed',
     preActionFailed: 'Pre-program failed: {{error}}',
     preActionExitCode: 'Pre-program exit code: {{code}}',
+    pretaskStarting: 'Running pre-task: {{name}}',
+    pretaskCompleted: 'Pre-task completed: {{name}}',
+    pretaskExitCode: 'Pre-task exit code: {{code}}',
+    pretaskFailed: 'Pre-task failed: {{error}}',
     preActionConnectDelay: 'Waiting {{seconds}} seconds before connecting...',
     autoPreActionName: '▶️ Launch {{name}}',
     autoPreActionAdded: 'Auto-added pre-action: {{name}} (disabled by default)',
@@ -335,6 +348,8 @@ export default {
     noMatchingOptions: 'No matching options',
     incompatibleController: 'Not supported by current controller',
     incompatibleResource: 'Not supported by current resource',
+    hotkeyPlaceholder: 'Click to record shortcut',
+    hotkeyCapturing: 'Press keys...',
   },
 
   // Preset
@@ -458,6 +473,8 @@ export default {
       loadingResource: 'Loading resource: {{name}}',
       resourceLoaded: 'Resource loaded: {{name}}',
       resourceFailed: 'Resource load failed: {{name}}',
+      resourceFailedHint:
+        'Try deleting the resource directory and reinstalling (overwrite) before retrying.',
       // Task messages
       taskStarting: 'Task started: {{name}}',
       taskSucceeded: 'Task completed: {{name}}',
@@ -495,6 +512,7 @@ export default {
     alreadyAdded: 'Already added',
     collapse: 'Collapse panel',
     specialTasks: 'Special Tasks',
+    pretasks: 'Pre-tasks',
     allSpecialTasksAdded: 'All added',
     ungroupedTasks: 'Others',
     resizeHandleAriaLabel: 'Resize add task panel height',
