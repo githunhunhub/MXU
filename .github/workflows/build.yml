@@ -287,21 +287,44 @@ jobs:
         with:
           path: artifacts
 
+      - name: Debug artifacts
+        run: |
+          echo "=== artifacts/ contents ==="
+          find artifacts -type f -o -type d | head -50
+
       - name: Package artifacts
         run: |
           cd artifacts
-          for dir in */; do
-            name="${dir%/}"
-            cd "$name"
-            # Linux and macOS artifacts are already tgz files, just move them
+          shopt -s nullglob
+          dirs=(*/)
+          shopt -u nullglob
+          if [ ${#dirs[@]} -gt 0 ]; then
+            # Multiple artifacts: each in its own subdirectory
+            for dir in "${dirs[@]}"; do
+              name="${dir%/}"
+              cd "$name"
+              if ls *.tar.gz 1> /dev/null 2>&1; then
+                mv *.tar.gz ../
+              else
+                zip -r "../${name}.zip" .
+              fi
+              cd ..
+            done
+          else
+            # Single artifact: files are downloaded directly here by download-artifact@v6
+            # Check if already zipped or a tar.gz
             if ls *.tar.gz 1> /dev/null 2>&1; then
-              mv *.tar.gz ../
+              echo "tar.gz files already present, nothing to do"
             else
-              # Windows artifacts need to be zipped
-              zip -r "../${name}.zip" .
+              # Detect name from existing zip or use tag-based name
+              ZIP_NAME=$(ls *.zip 2>/dev/null | head -1)
+              if [ -z "$ZIP_NAME" ]; then
+                ZIP_NAME="MXU-${{ needs.meta.outputs.tag }}.zip"
+              fi
+              echo "Packaging as $ZIP_NAME"
+              zip -r "../$ZIP_NAME" .
             fi
-            cd ..
-          done
+          fi
           ls -la
 
       - name: Create Release
