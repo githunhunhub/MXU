@@ -4,26 +4,6 @@ on:
   push:
     tags:
       - "v*"
-    branches:
-      - "**"
-    paths:
-      - ".github/workflows/build.yml"
-      - "src/**"
-      - "src-tauri/**"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "vite.config.ts"
-
-  pull_request:
-    branches:
-      - "**"
-    paths:
-      - ".github/workflows/build.yml"
-      - "src/**"
-      - "src-tauri/**"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "vite.config.ts"
 
   workflow_dispatch:
 
@@ -34,9 +14,23 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
       is-release: ${{ startsWith(github.ref, 'refs/tags/v') }}
+      on-main: ${{ steps.check-branch.outputs.on-main }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check tag is on main
+        id: check-branch
+        run: |
+          TAG_SHA="${{ github.sha }}"
+          if git branch -r --contains "$TAG_SHA" | grep -q "origin/main$"; then
+            echo "on-main=true" >> $GITHUB_OUTPUT
+          else
+            echo "on-main=false" >> $GITHUB_OUTPUT
+            echo "::warning::Tag is not on main branch, skipping build"
+          fi
 
       - name: Get version
         id: version
@@ -53,6 +47,7 @@ jobs:
 
   windows:
     needs: meta
+    if: needs.meta.outputs.on-main == 'true'
     runs-on: windows-latest
     strategy:
       matrix:
@@ -275,7 +270,7 @@ jobs:
           GITHUB_REPO: ${{ github.repository }}
 
   release:
-    if: ${{ needs.meta.outputs.is-release == 'true' }}
+    if: ${{ needs.meta.outputs.is-release == 'true' && needs.meta.outputs.on-main == 'true' }}
     needs: [meta, windows, changelog]
     runs-on: ubuntu-latest
     permissions:
@@ -322,7 +317,7 @@ jobs:
                 ZIP_NAME="MXU-${{ needs.meta.outputs.tag }}.zip"
               fi
               echo "Packaging as $ZIP_NAME"
-              zip -r "../$ZIP_NAME" .
+              zip -r "$ZIP_NAME" .
             fi
           fi
           ls -la
