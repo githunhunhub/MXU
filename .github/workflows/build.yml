@@ -56,7 +56,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        arch: [x86_64, aarch64]
+        arch: [x86_64]
       fail-fast: false
 
     steps:
@@ -75,13 +75,13 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.arch == 'x86_64' && 'x86_64-pc-windows-msvc' || 'aarch64-pc-windows-msvc' }}
+          targets: x86_64-pc-windows-msvc
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
           workspaces: "src-tauri -> target"
-          shared-key: "windows-${{ matrix.arch }}"
+          shared-key: "windows-x86_64"
           cache-on-failure: true
 
       - name: Install frontend dependencies
@@ -100,13 +100,13 @@ jobs:
           echo "Updated version to $VERSION"
 
       - name: Build Tauri app
-        run: pnpm tauri build --no-bundle --target ${{ matrix.arch == 'x86_64' && 'x86_64-pc-windows-msvc' || 'aarch64-pc-windows-msvc' }}
+        run: pnpm tauri build --no-bundle --target x86_64-pc-windows-msvc
 
       - name: Prepare artifacts
         shell: bash
         run: |
           mkdir -p install
-          TARGET_DIR="src-tauri/target/${{ matrix.arch == 'x86_64' && 'x86_64-pc-windows-msvc' || 'aarch64-pc-windows-msvc' }}/release"
+          TARGET_DIR="src-tauri/target/x86_64-pc-windows-msvc/release"
           cp -r "$TARGET_DIR/mxu.exe" install/ || true
           cp -r "$TARGET_DIR/mxu.pdb" install/ || true
           cp LICENSE README.md install/ || true
@@ -116,141 +116,141 @@ jobs:
         uses: actions/upload-artifact@v6
         if: always()
         with:
-          name: MXU-win-${{ matrix.arch }}-${{ needs.meta.outputs.tag }}
+          name: MXU-win-x86_64-${{ needs.meta.outputs.tag }}
           path: "install"
 
-  linux:
-    needs: meta
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        arch: [x86_64]
-      fail-fast: false
+  # linux:
+  #   needs: meta
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     matrix:
+  #       arch: [x86_64]
+  #     fail-fast: false
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v6
 
-      - name: Install Linux dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+  #     - name: Install Linux dependencies
+  #       run: |
+  #         sudo apt-get update
+  #         sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+  #     - name: Setup pnpm
+  #       uses: pnpm/action-setup@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 20
-          cache: "pnpm"
+  #     - name: Setup Node.js
+  #       uses: actions/setup-node@v6
+  #       with:
+  #         node-version: 20
+  #         cache: "pnpm"
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+  #     - name: Setup Rust
+  #       uses: dtolnay/rust-toolchain@stable
 
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: "src-tauri -> target"
-          shared-key: "linux-${{ matrix.arch }}"
-          cache-on-failure: true
+  #     - name: Rust cache
+  #       uses: swatinem/rust-cache@v2
+  #       with:
+  #         workspaces: "src-tauri -> target"
+  #         shared-key: "linux-${{ matrix.arch }}"
+  #         cache-on-failure: true
 
-      - name: Install frontend dependencies
-        run: pnpm install
+  #     - name: Install frontend dependencies
+  #       run: pnpm install
 
-      - name: Update version
-        run: |
-          VERSION="${{ needs.meta.outputs.version }}"
-          # Update package.json
-          sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" package.json
-          # Update tauri.conf.json
-          sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
-          # Update Cargo.toml (only the package version at line start, not dependency versions)
-          sed -i "s/^version = \"[^\"]*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
-          echo "Updated version to $VERSION"
+  #     - name: Update version
+  #       run: |
+  #         VERSION="${{ needs.meta.outputs.version }}"
+  #         # Update package.json
+  #         sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" package.json
+  #         # Update tauri.conf.json
+  #         sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
+  #         # Update Cargo.toml (only the package version at line start, not dependency versions)
+  #         sed -i "s/^version = \"[^\"]*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
+  #         echo "Updated version to $VERSION"
 
-      - name: Build Tauri app
-        run: pnpm tauri build --no-bundle
+  #     - name: Build Tauri app
+  #       run: pnpm tauri build --no-bundle
 
-      - name: Prepare artifacts
-        run: |
-          mkdir -p install
-          cp -r src-tauri/target/release/mxu install/ || true
-          cp LICENSE README.md install/ || true
-          ls -la install/
-          tar -czvf MXU-linux-${{ matrix.arch }}-${{ needs.meta.outputs.tag }}.tar.gz -C install .
+  #     - name: Prepare artifacts
+  #       run: |
+  #         mkdir -p install
+  #         cp -r src-tauri/target/release/mxu install/ || true
+  #         cp LICENSE README.md install/ || true
+  #         ls -la install/
+  #         tar -czvf MXU-linux-${{ matrix.arch }}-${{ needs.meta.outputs.tag }}.tar.gz -C install .
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v6
-        if: always()
-        with:
-          name: MXU-linux-${{ matrix.arch }}-${{ needs.meta.outputs.tag }}
-          path: "MXU-linux-${{ matrix.arch }}-${{ needs.meta.outputs.tag }}.tar.gz"
+  #     - name: Upload artifacts
+  #       uses: actions/upload-artifact@v6
+  #       if: always()
+  #       with:
+  #         name: MXU-linux-${{ matrix.arch }}-${{ needs.meta.outputs.tag }}
+  #         path: "MXU-linux-${{ matrix.arch }}-${{ needs.meta.outputs.tag }}.tar.gz"
 
-  macos:
-    needs: meta
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        arch: [x86_64, aarch64]
-      fail-fast: false
+  # macos:
+  #   needs: meta
+  #   runs-on: macos-latest
+  #   strategy:
+  #     matrix:
+  #       arch: [x86_64, aarch64]
+  #     fail-fast: false
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v6
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+  #     - name: Setup pnpm
+  #       uses: pnpm/action-setup@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 20
-          cache: "pnpm"
+  #     - name: Setup Node.js
+  #       uses: actions/setup-node@v6
+  #       with:
+  #         node-version: 20
+  #         cache: "pnpm"
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.arch == 'x86_64' && 'x86_64-apple-darwin' || 'aarch64-apple-darwin' }}
+  #     - name: Setup Rust
+  #       uses: dtolnay/rust-toolchain@stable
+  #       with:
+  #         targets: ${{ matrix.arch == 'x86_64' && 'x86_64-apple-darwin' || 'aarch64-apple-darwin' }}
 
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: "src-tauri -> target"
-          shared-key: "macos-${{ matrix.arch }}"
-          cache-on-failure: true
+  #     - name: Rust cache
+  #       uses: swatinem/rust-cache@v2
+  #       with:
+  #         workspaces: "src-tauri -> target"
+  #         shared-key: "macos-${{ matrix.arch }}"
+  #         cache-on-failure: true
 
-      - name: Install frontend dependencies
-        run: pnpm install
+  #     - name: Install frontend dependencies
+  #       run: pnpm install
 
-      - name: Update version
-        run: |
-          VERSION="${{ needs.meta.outputs.version }}"
-          # Update package.json
-          sed -i '' "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" package.json
-          # Update tauri.conf.json
-          sed -i '' "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
-          # Update Cargo.toml (only the package version at line start, not dependency versions)
-          sed -i '' "s/^version = \"[^\"]*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
-          echo "Updated version to $VERSION"
+  #     - name: Update version
+  #       run: |
+  #         VERSION="${{ needs.meta.outputs.version }}"
+  #         # Update package.json
+  #         sed -i '' "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" package.json
+  #         # Update tauri.conf.json
+  #         sed -i '' "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
+  #         # Update Cargo.toml (only the package version at line start, not dependency versions)
+  #         sed -i '' "s/^version = \"[^\"]*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
+  #         echo "Updated version to $VERSION"
 
-      - name: Build Tauri app
-        run: pnpm tauri build --no-bundle --target ${{ matrix.arch == 'x86_64' && 'x86_64-apple-darwin' || 'aarch64-apple-darwin' }}
+  #     - name: Build Tauri app
+  #       run: pnpm tauri build --no-bundle --target ${{ matrix.arch == 'x86_64' && 'x86_64-apple-darwin' || 'aarch64-apple-darwin' }}
 
-      - name: Prepare artifacts
-        run: |
-          mkdir -p install
-          cp -r src-tauri/target/${{ matrix.arch == 'x86_64' && 'x86_64-apple-darwin' || 'aarch64-apple-darwin' }}/release/mxu install/ || true
-          cp LICENSE README.md install/ || true
-          ls -la install/
-          tar -czvf MXU-macos-${{ matrix.arch }}-${{ needs.meta.outputs.tag }}.tar.gz -C install .
+  #     - name: Prepare artifacts
+  #       run: |
+  #         mkdir -p install
+  #         cp -r src-tauri/target/${{ matrix.arch == 'x86_64' && 'x86_64-apple-darwin' || 'aarch64-apple-darwin' }}/release/mxu install/ || true
+  #         cp LICENSE README.md install/ || true
+  #         ls -la install/
+  #         tar -czvf MXU-macos-${{ matrix.arch }}-${{ needs.meta.outputs.tag }}.tar.gz -C install .
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v6
-        if: always()
-        with:
-          name: MXU-macos-${{ matrix.arch }}-${{ needs.meta.outputs.tag }}
-          path: "MXU-macos-${{ matrix.arch }}-${{ needs.meta.outputs.tag }}.tar.gz"
+  #     - name: Upload artifacts
+  #       uses: actions/upload-artifact@v6
+  #       if: always()
+  #       with:
+  #         name: MXU-macos-${{ matrix.arch }}-${{ needs.meta.outputs.tag }}
+  #         path: "MXU-macos-${{ matrix.arch }}-${{ needs.meta.outputs.tag }}.tar.gz"
 
   changelog:
     name: Generate changelog
@@ -276,7 +276,7 @@ jobs:
 
   release:
     if: ${{ needs.meta.outputs.is-release == 'true' }}
-    needs: [meta, windows, linux, macos, changelog]
+    needs: [meta, windows, changelog]
     runs-on: ubuntu-latest
     permissions:
       contents: write
