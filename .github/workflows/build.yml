@@ -314,7 +314,7 @@ jobs:
               # Detect name from existing zip or use tag-based name
               ZIP_NAME=$(ls *.zip 2>/dev/null | head -1)
               if [ -z "$ZIP_NAME" ]; then
-                ZIP_NAME="MXU-${{ needs.meta.outputs.tag }}.zip"
+                ZIP_NAME="MXU-win-x86_64-${{ needs.meta.outputs.tag }}.zip"
               fi
               echo "Packaging as $ZIP_NAME"
               zip -r "$ZIP_NAME" .
